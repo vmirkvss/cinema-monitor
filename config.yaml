@@ -1,0 +1,66 @@
+# Конфигурация мониторинга. Токен и chat_id здесь НЕ хранятся (только в переменных окружения).
+
+poll:
+  interval_seconds: 300   # раз в 5 минут
+  jitter_seconds: 30      # случайный разброс ±30 сек (только для постоянного режима)
+
+http:
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+  connect_timeout: 10
+  read_timeout: 25
+  retries: 3
+
+# --- Фильм ------------------------------------------------------------------
+# Достаточно совпадения ЛЮБОГО слова (без учёта регистра). Слова латиницей нужны,
+# потому что у ticketon адреса страниц транслитерированы (…/event/mstiteli-sudnyj-den).
+film:
+  title: "Мстители: Судный день"   # показывается в сообщении
+  keywords: [avengers, doomsday, мстители, судный день, mstiteli, sudnyj, sudnyy, sudnyi]
+  # Чтобы не срабатывать на старые фильмы франшизы (ре-релизы, архив афиши):
+  exclude_keywords: [финал, endgame, война бесконечности, infinity war, эра альтрона, ultron, секретные войны, secret wars, mstiteli-final, mstiteli-voyna]
+
+# --- Кинотеатры ------------------------------------------------------------
+# include — любое из слов; exclude — если есть любое, кинотеатр НЕ подходит.
+# ВАЖНО: одного слова "chaplin" мало — оно совпадёт с Chaplin ADK и Chaplin MegaPark.
+cinemas:
+  - name: "Chaplin MEGA Alma-Ata (Mega Center)"
+    include: ["chaplin mega", "mega chaplin", "mega alma", "mega center", "mega centre", "чаплин мега", "мега чаплин", "мега альма"]
+    exclude: ["park", "парк", "adk", "адк"]
+  - name: "Cinemax Dostyk Plaza"
+    include: ["dostyk plaza", "достык плаза", "cinemax dostyk", "синемакс достык", "dostyk multiplex"]
+    exclude: []
+
+alerts:
+  failure_threshold: 3     # столько проверок подряд "сайт не в порядке" -> предупреждение
+  heartbeat_hours: 1      # «работаю, билетов пока нет»
+
+state_file: state.json
+
+# --- Сайты ------------------------------------------------------------------
+# Схема: списки фильмов (listing_urls) -> ссылки по link_pattern -> те, что похожи на фильм ->
+# разбор страницы фильма. Если вы нашли в DevTools (Network -> Fetch/XHR) JSON-запрос
+# с расписанием, добавьте его в json_urls — это надёжнее HTML.
+sites:
+  - name: ticketon.kz
+    enabled: true
+    listing_urls:            # ПРОВЕРЬТЕ через `python main.py --discover`
+      - https://ticketon.kz/almaty
+      - https://ticketon.kz/ru/almaty
+    link_pattern: "/event/"
+    min_listing_links: 5     # «канарейка»: меньше ссылок -> считаем, что структура изменилась
+    film_urls: []            # можно вписать прямую ссылку на страницу фильма, когда она появится
+    json_urls: []
+    json_film_specific: false
+    require_date: true
+
+  - name: kino.kz
+    enabled: true
+    listing_urls:            # НЕ ПРОВЕРЕНО: уточните через --discover / DevTools
+      - https://kino.kz/
+      - https://kino.kz/almaty
+    link_pattern: "/(film|films|movie|movies)/"
+    min_listing_links: 5
+    film_urls: []
+    json_urls: []            # сюда лучше всего вставить JSON-эндпоинт расписания kino.kz
+    json_film_specific: false
+    require_date: true
